@@ -3,6 +3,7 @@ library(tidyverse)
 library(caret)
 library(matrixStats)
 library(janitor)
+set.seed(1, sample.kind="Rounding")
 
 #Data: https://www.kaggle.com/datasets/crawford/gene-expression
 train_data <- read_csv("data_set_ALL_AML_train.csv", col_names = T)
@@ -70,12 +71,32 @@ colSds(all_data_norm)
 colMeans(all_data_norm)
 View(all_data_norm)
 
-pca <- prcomp(all_data_norm)
+#Split data into train and test data
+
+indexTrain <- createDataPartition(labels$cancer, p=0.66, list = F)
+norm_train_data <- all_data_norm[indexTrain, ]
+norm_test_data <- all_data_norm[-indexTrain, ]
+train_label <- labels[indexTrain, ]
+test_label <- labels[-indexTrain, ]
+nrow(norm_train_data)
+nrow(train_label)
+
+#Perform pca on train data
+pca <- prcomp(norm_train_data)
+str(pca)
 plot(pca$x[,1], pca$x[,2])
 pca.var <- pca$sdev^2
 pca.var.per <- round(pca.var/sum(pca.var)*100, 1)
 barplot(pca.var.per, main="Scree Plot", xlab="Principal Component", ylab="Percent Variation")
-pca.data <- data.frame(Sample=rownames(pca$x),
-                       X=pca$x[,1],
-                       Y=pca$x[,2])
-pca.data
+
+#number of components for 95% variability
+cs <- cumsum(pca.var.per)
+nc <- length(cs[cs < 95]) + 1
+nc
+
+#Select the components
+pca_test_data <- pca$x[, 1:nc]
+dim(pca_test_data)
+
+test_data_fr <- data.frame(y=train_label$cancer, pca_test_data)
+
