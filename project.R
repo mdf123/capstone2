@@ -6,28 +6,28 @@ library(janitor)
 
 #Data: https://www.kaggle.com/datasets/crawford/gene-expression
 train_data <- read_csv("data_set_ALL_AML_train.csv", col_names = T)
-View(train_data)
+#View(train_data)
 nrow(train_data)
 
 #View(train_data)
 test_data <- read_csv("data_set_ALL_AML_independent.csv")
 labels <- read_csv("actual.csv")
-View(labels)
+#View(labels)
 
 
 #Remove call columns
 train_data <- train_data %>% select(-contains("call"))
-View(train_data)
+#View(train_data)
 
 #In train data the columns are not sorted by the patient number
 train_data_desc <- train_data[, 1:2]
 train_data_data <- train_data[, 3:ncol(train_data)]
 train_data_data <- train_data_data[, order(as.numeric(names(train_data_data)))]
-View(train_data_data)
+#View(train_data_data)
 
 train_data <- cbind(train_data_desc, train_data_data)
 
-View(train_data)
+#View(train_data)
 ncol(train_data)
 test_data <- test_data %>% select(-contains("call"))
 ncol(test_data)
@@ -48,26 +48,24 @@ nrow(all_data)
 all_data <- t(all_data)
 
 
+#colnames
 all_data <- all_data %>% row_to_names(row_number = 2)
+
+
+#View(all_data)
+str(all_data)
+class(all_data)
+all_data <- apply(all_data, 2, as.numeric)
+str(all_data)
+
+#rownames
 rownames(all_data) <- paste("patient", 1:nrow(all_data), sep=" ")
 View(all_data)
 
-#Numeric matrix
 
-all_data_m <- matrix(as.numeric(unlist(all_data)),nrow=nrow(all_data))
-View(all_data_m)
-str(all_data_m)
-geneMeans <- colMeans(all_data_m)
-geneMeans
-
-as.data.frame(geneMeans) %>% ggplot(aes(x=geneMeans)) + geom_histogram()
-
-geneSds <- colSds(all_data_m)
-as.data.frame(geneSds) %>% ggplot(aes(x=geneSds)) + geom_histogram() + scale_x_log10()
-min(geneSds)
-
+#Normalize
 all_data_norm <- sweep(all_data, 2, colMeans(all_data))
-all_data_norm <- sweep(all_data_norm, 2, colSds(all_data_m), "/")
+all_data_norm <- sweep(all_data_norm, 2, colSds(all_data_norm), "/")
 colSds(all_data_norm)
 colMeans(all_data_norm)
 View(all_data_norm)
@@ -80,6 +78,4 @@ barplot(pca.var.per, main="Scree Plot", xlab="Principal Component", ylab="Percen
 pca.data <- data.frame(Sample=rownames(pca$x),
                        X=pca$x[,1],
                        Y=pca$x[,2])
-pca$x[,1]
-pca$x[,2]
-rownames(pca$x)
+pca.data
