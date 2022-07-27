@@ -61,7 +61,7 @@ str(all_data)
 
 #rownames
 rownames(all_data) <- paste("patient", 1:nrow(all_data), sep=" ")
-View(all_data)
+#View(all_data)
 
 
 #Normalize
@@ -69,7 +69,7 @@ all_data_norm <- sweep(all_data, 2, colMeans(all_data))
 all_data_norm <- sweep(all_data_norm, 2, colSds(all_data_norm), "/")
 colSds(all_data_norm)
 colMeans(all_data_norm)
-View(all_data_norm)
+#View(all_data_norm)
 
 #Split data into train and test data
 
@@ -78,9 +78,60 @@ norm_train_data <- all_data_norm[indexTrain, ]
 norm_test_data <- all_data_norm[-indexTrain, ]
 train_label <- labels[indexTrain, ]
 test_label <- labels[-indexTrain, ]
+str(norm_train_data)
 nrow(norm_train_data)
 nrow(train_label)
 
+
+
+
+
+#Support Vector machines
+#https://rpubs.com/uky994/593668
+
+svmlinear1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmLinear")
+svmlinear1
+
+results <- tibble(model="Linear 1", accuracy=svmlinear1$results[which.max(svmlinear1$results[,2]), 2])
+results
+
+#Tune cost factor c
+svmlinear2 <- train(x = norm_train_data, y= train_label$cancer, method = "svmLinear", tuneGrid = expand.grid(C=seq(0.1,1,0.2)))
+svmlinear2
+svmlinear2_result <- c(model="Linear 2", accuracy=svmlinear2$results[which.max(svmlinear2$results[,2]), 2])
+results <- rbind(results, svmlinear2_result)
+results
+
+#Radial
+modelLookup("svmRadial")
+svmRadial1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmRadial", tuneLength = 10)
+svmRadial1$results
+svmRadial1_result <- c(model="Radial 1", accuracy=svmRadial1$results[which.max(svmRadial1$results[,3]), 3])
+
+results <- rbind(results, svmRadial1_result)
+results
+
+#Polynomial
+modelLookup("svmPoly")
+svmPoly1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmPoly", tuneLength = 4)
+svmPoly1$results
+svmPoly1_result <- c(model="Poly 1", accuracy=svmPoly1$results[which.max(svmPoly1$results[,4]), 4])
+results <- rbind(results, svmPoly1_result)
+results
+
+svmPoly1$bestTune
+
+#--------- Decision tree ------------------------------
+
+train_rpart <- train(norm_train_data, factor(train_label$cancer),
+                     method = "rpart",
+                     tuneGrid = data.frame(cp = seq(0.0, 0.1, len = 25)))
+
+train_rpart
+plot(train_rpart)
+
+
+#---------------- PCA ----------------------------------
 #Perform pca on train data
 pca <- prcomp(norm_train_data)
 str(pca)
@@ -95,8 +146,20 @@ nc <- length(cs[cs < 95]) + 1
 nc
 
 #Select the components
-pca_test_data <- pca$x[, 1:nc]
-dim(pca_test_data)
+pca_train_data <- pca$x[, 1:nc]
+dim(pca_train_data)
 
-test_data_fr <- data.frame(y=train_label$cancer, pca_test_data)
+train_data_pca <- data.frame(y=train_label$cancer, pca_train_data)
+View(train_data_pca)
 
+train_rpart <- train(y ~ .,
+                     method = "rpart",
+                     tuneGrid = data.frame(cp = seq(0.0, 0.1, len = 25)),
+                     data = train_data_pca)
+plot(train_rpart)
+
+train_rf_2 <- train(y ~ .,
+                    method = "Rborist",
+                    tuneGrid = data.frame(predFixed = 2, minNode=seq(1,10, by=1)),
+                    data = train_data_pca)
+plot(train_rf_2)
