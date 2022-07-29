@@ -98,6 +98,8 @@ View(top_data)
 x_m <- top_data[, 3:ncol(top_data)]
 #View(x_m)
 
+str(x_m)
+
 
 #Transform to make tidy: observations = patients in rows, genes in columns
 x_m <- t(x_m)
@@ -105,6 +107,10 @@ ncol(x_m) #70 top DE genes
 nrow(x_m) ##72 patients
 
 colnames(x_m) <- top_data$`Gene Accession Number`
+#Paste cancer type to patient number
+rownames(x_m)<- paste(rownames(x_m), labels$cancer)
+#Heatmap
+heatmap(t(x_m))
 View(x_m)
 
 #Normalize
@@ -127,4 +133,6 @@ nrow(train_label)
 svmlinear1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmLinear")
 svmlinear1
 
-`
+svmlinear1_prediction <- predict(svmlinear1, norm_test_data)
+head(svmlinear1_prediction)
+confusionMatrix(svmlinear1_prediction, factor(test_label$cancer))

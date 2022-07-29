@@ -1,0 +1,17 @@
+---
+title: "Capstone 2 Prediction of ALL vs AML from Gene Expression"
+author: "Dr. Hans M. Rupp"
+date: "29 7 2022"
+output: pdf_document
+---
+
+
+# Introduction
+
+The purpose of this project is to evaluate different machine learning algorithms for predicting two different cancer types, Acute Myeloid Leukemia (AML) and Acute lymphoblastic leukaemia (ALL) from microarray RNA expression data.
+AML and ALL are the two main types of Acute Leukemias. They differ in their origin and treatments. To provide optimal treatment the cancer type must be diagnosed [1]. Microarray Expression chips are arrays of oligonucleotides which hybridize to mRNAs of specific genes. They allow the semiquantitative analysis of the expression a great number of genes in parallel. One common application is the comparision of diseased vs disease free or of different diseases to find differentially expressed (DE) genes [2]
+
+
+# References
+[1] Demistify Cancer Treatment. Course. Cancer Research UK
+[2] Arthur M. Lesk: Introduction to Genomics. Oxford 2017.
