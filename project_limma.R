@@ -1,4 +1,5 @@
 rm(list=ls())
+set.seed(2, sample.kind = "Rounding")
 library(tidyverse)
 library(caret)
 library(matrixStats)
@@ -7,6 +8,7 @@ library(Biobase)
 
 #Data: https://www.kaggle.com/datasets/crawford/gene-expression
 train_data <- read_csv("data_set_ALL_AML_train.csv", col_names = T)
+
 #View(train_data)
 nrow(train_data)
 
@@ -49,7 +51,7 @@ all_data_data <- all_data[, 3:ncol(all_data)]
 all_data_data <- all_data_data[, order(as.numeric(names(all_data_data)))]
 
 all_data <- cbind(all_data_desc, all_data_data)
-View(all_data)
+#View(all_data)
 
 #features
 f <- all_data[, 1:2]
@@ -87,10 +89,16 @@ results <- decideTests(fit[, "cancerAML"])
 summary(results)
 
 #List of differentially expressed genes
-top_DE_genes <- topTable(fit, n=70, adjust="fdr")
+top_DE_genes <- topTable(fit, n=100, adjust="fdr")
+head(top_DE_genes)
 
 str(all_data)
 top_data <- all_data %>% filter(`Gene Accession Number` %in% top_DE_genes$Gene.Accession.Number)
+
+zyxin <- top_data %>% filter(`Gene Description`=="Zyxin") %>% select(-c(1,2)) 
+zyxin <- as.numeric(t(zyxin))
+zyxindf <- data.frame(x = zyxin, labels)
+zyxindf %>% ggplot(aes(x=cancer, y=x)) + geom_boxplot() + labs(title = "Zyxin Expression", x="Cancer", y="Expression")
 
 View(top_data)
 
@@ -109,9 +117,9 @@ nrow(x_m) ##72 patients
 colnames(x_m) <- top_data$`Gene Accession Number`
 #Paste cancer type to patient number
 rownames(x_m)<- paste(rownames(x_m), labels$cancer)
-#Heatmap
+#Heatmap expects features in columns
 heatmap(t(x_m))
-View(x_m)
+#View(x_m)
 
 #Normalize
 x_m_norm <- scale(x_m)
