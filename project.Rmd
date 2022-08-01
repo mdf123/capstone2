@@ -160,7 +160,7 @@ top_data <- all_data %>% filter(`Gene Accession Number` %in% top_DE_genes$Gene.A
 
 
 Comparison of the expression of the top DE gene
-```{r}
+```{r, message=FALSE, fig.width=5, fig.height=3}
 zyxin <- top_data %>% filter(`Gene Description`=="Zyxin") %>% select(-c(1,2)) 
 zyxin <- as.numeric(t(zyxin))
 zyxindf <- data.frame(x = zyxin, labels)
@@ -170,6 +170,164 @@ zyxindf %>% ggplot(aes(x=cancer, y=x)) + geom_boxplot() + labs(title = "Zyxin Ex
 
 
 
+
+## Prepare Data for ML algorithms
+
+Numerical Expression Matrix
+```{r}
+x_m <- top_data[, 3:ncol(top_data)]
+
+```
+
+Transpose to make tidy and add row and col names
+```{r}
+x_m <- t(x_m)
+ncol(x_m) #100 top DE genes
+nrow(x_m) ##72 patients
+
+colnames(x_m) <- top_data$`Gene Accession Number`
+#Paste cancer type to patient number
+rownames(x_m)<- paste(rownames(x_m), labels$cancer)
+
+```
+
+## Heatmap
+
+A heatmap is a visual representation of a multidimensional data set using a false-colored image.
+By default the heatmap function clusters both features and samples. It uses the Eucledian distance and complete linkage.
+The features are expected in rows.
+The data is scaled
+
+```{r}
+heatmap(t(x_m))
+```
+We see that the AML cases are clustered on the left side.
+
+## Normalization
+
+The means of the expression data of different genes differ.
+```{r, message=FALSE, fig.width=5, fig.height=3}
+means <- data.frame(expm=rowMeans(x_m))
+means %>% ggplot(aes(x=expm)) + geom_histogram()
+```
+
+To avoid that strongly expressed have a disproportionate influence on models we normalize the data
+
+```{r}
+x_m_norm <- scale(x_m)
+```
+
+Creation of train- and testdata
+
+```{r}
+indexTrain <- createDataPartition(labels$cancer, p=0.66, list = F)
+norm_train_data <- x_m_norm[indexTrain, ]
+norm_test_data <- x_m_norm[-indexTrain, ]
+train_label <- labels[indexTrain, ]
+test_label <- labels[-indexTrain, ]
+```
+
+# K-nearest-neighbours kNN
+The kNN algorithm uses information about an example's k nearest neighbors to classify unlabeled examples. k is the only parameter of this algorithm. Determining the nearest neighbor requires a distance function. Usually the Euclidean distance is applied. [6]
+
+The Euclidean distance between the samples p and q is:
+dist(p,q) = $\sqrt{(p_{1}-q_{1})^2 + (p_{2}-q_{2})^2 + .. + (p_{n}-q_{n})^2}$
+where p~1~ is the first features of sample p
+
+Running knn with ks from 1 to 11 with a step size of 2:
+
+```{r}
+knn <- train(x = norm_train_data, y= train_label$cancer, method = "knn", 
+             tuneGrid = data.frame(k = seq(1,11,2)))
+knn
+```
+
+```{r, message=FALSE, fig.width=5, fig.height=3}
+ggplot(knn, highlight = T) + labs(title="kNN", x="k")
+```
+
+
+Using the model to make predictions on the test data
+```{r}
+
+knn_prediction <- predict(knn, norm_test_data)
+confusionMatrix(knn_prediction, factor(test_label$cancer))
+```
+
+Accuracy is the proportion of correct predictions
+
+The kappa statistic adjusts accuracy
+by accounting for the possibility of a correct prediction by chance alone. 
+
+The “no-information rate” is the largest proportion of the observed classes:
+```{r}
+mean(knn_prediction == "ALL")
+```
+P-Value [Acc > NIR]: A hypothesis test computed to evaluate whether the overall accuracy rate is greater than the rate of the largest class
+
+Sensitivity is the true positive rate (in this case ALL is the positive class)
+sensitivity = $\frac{TP}{TP+FP}$
+
+Specificity is the true negativ rate (in this case AML is the negative class)
+sensitivity = $\frac{TN}{TN+FP}$
+
+Pos Pred Value = $\frac{TP}{TP+FP}$
+
+Neg Pred Value = $\frac{TN}{TN+FN}$
+
+Saving the accuracy
+
+```{r}
+results <- tibble(model="knn", accuracy=confusionMatrix(knn_prediction,
+                                                    factor(test_label$cancer))$overall[["Accuracy"]])
+```
+
+
+
+
+# Support Vector Machines
+Support vector machines are supervised learning models for classification and regression analysis. They are effective in high dimensional spaces. So they should be useful for classification tasks with many features, such as the classification of microarray data. 
+The goal of an SVM is to create a flat boundary called a hyperplane, which divides the space to create fairly homogeneous partitions
+on either side. [6] The Hyperplane is chosen to create the greatest  separation between the two classes: maximum margin hyperplane.
+A cost value can be applied to all points, which do not fall on the right side of the hyperplane. The greater the cost parameter, the harder the optimization will try to achieve 100 percent separation. On the other hand, a lower cost parameter will place the emphasis on a wider overall margin. Choosing the cost factor too large can lead to overfitting on the training data.
+Many datasets which are not linearly divisible can still be analyzed by projecting them into a higher dimension, where they are separable. This is called the kernel trick.
+
+There are several kernel functions available.
+
+The linear kernel does not transform the data at all.
+The polynomial kernel of degree d adds a simple nonlinear transformation
+of the data.
+The sigmoid kernel results in an SVM model somewhat analogous to a neural
+network using a sigmoid activation function
+
+Linear SVM
+
+```{r}
+svmlinear1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmLinear")
+svmlinear1
+```
+
+Using the model to make predictions on the test data
+
+```{r}
+svmlinear1_prediction <- predict(svmlinear1, norm_test_data)
+confusionMatrix(svmlinear1_prediction, factor(test_label$cancer))
+```
+
+```{r}
+svmlinear1_accuracy <- confusionMatrix(svmlinear1_prediction,
+                                            factor(test_label$cancer))$overall[["Accuracy"]]
+results <- rbind(results, c("SVM Linear 1", svmlinear1_accuracy))
+results
+```
+
+Without optimizing the cost factor we have already achieved an accuracy of `r svmlinear1_accuracy`
+ 
+# Discussion
+This analysis has shown that the automated diagnosis of ALL versus AML is feasible with microarray expression data and SVM after differentially expressed genes have been identified.
+The limitation of this project is the fact that only a relatively small test set was available. The high accuracy might to some degree be due to chance.
+Also this project might be repeated with RNAseq data. RNAseq continues to replace microarray experiments, since it hypothesis free. With microarrays only known genes wich are represented on the chip can be detected.
+                                                            
 # References
 [1] Demystifying Targeted Cancer Treatment. Course. Cancer Research UK
 [2] Lesk, Arthur M. : Introduction to Genomics. Oxford 2017.
@@ -178,3 +336,4 @@ zyxindf %>% ggplot(aes(x=cancer, y=x)) + geom_boxplot() + labs(title = "Zyxin Ex
 limma powers differential expression analyses for RNA-sequencing and microarray studies.
 Nucleic Acids Research 43(7), e47.
 [5] https://bioconductor.org/packages/release/workflows/vignettes/RNAseq123/inst/doc/designmatrices.html
+[6] Lantz, B: Machine Learning with R. 2019 Packt Publishing

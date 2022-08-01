@@ -100,7 +100,7 @@ zyxin <- as.numeric(t(zyxin))
 zyxindf <- data.frame(x = zyxin, labels)
 zyxindf %>% ggplot(aes(x=cancer, y=x)) + geom_boxplot() + labs(title = "Zyxin Expression", x="Cancer", y="Expression")
 
-View(top_data)
+#View(top_data)
 
 #numerical matrix
 x_m <- top_data[, 3:ncol(top_data)]
@@ -111,7 +111,7 @@ str(x_m)
 
 #Transform to make tidy: observations = patients in rows, genes in columns
 x_m <- t(x_m)
-ncol(x_m) #70 top DE genes
+ncol(x_m) #100 top DE genes
 nrow(x_m) ##72 patients
 
 colnames(x_m) <- top_data$`Gene Accession Number`
@@ -120,6 +120,9 @@ rownames(x_m)<- paste(rownames(x_m), labels$cancer)
 #Heatmap expects features in columns
 heatmap(t(x_m))
 #View(x_m)
+
+means <- data.frame(expm=rowMeans(x_m))
+means %>% ggplot(aes(x=expm)) + geom_histogram()
 
 #Normalize
 x_m_norm <- scale(x_m)
@@ -137,10 +140,34 @@ str(norm_train_data)
 nrow(norm_train_data)
 nrow(train_label)
 
+#K-nearest neighbor
+knn <- train(x = norm_train_data, y= train_label$cancer, method = "knn", tuneGrid = data.frame(k = seq(1,11,2)))
+knn
+ggplot(knn)
+knn_prediction <- predict(knn, norm_test_data)
+confusionMatrix(knn_prediction, factor(test_label$cancer))
+
+results <- tibble(model="knn", accuracy=confusionMatrix(knn_prediction, factor(test_label$cancer))$overall[["Accuracy"]])
+results
+
 #SVN
 svmlinear1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmLinear")
 svmlinear1
 
+modelLookup("svmLinear")
+getModelInfo("svmLinear")
+
 svmlinear1_prediction <- predict(svmlinear1, norm_test_data)
 head(svmlinear1_prediction)
 confusionMatrix(svmlinear1_prediction, factor(test_label$cancer))
+
+results <- rbind(results, c("SVM Linear 1", confusionMatrix(svmlinear1_prediction,
+                                                            factor(test_label$cancer))$overall[["Accuracy"]]))
+results
+
+#Tune cost factor
+svmlinear2 <- train(x = norm_train_data, y= train_label$cancer, method = "svmLinear", tuneGrid = expand.grid(C=seq(0.1,1,0.2)))
+svmlinear2
+
+svmlinear2_prediction <- predict(svmlinear2, norm_test_data)
+confusionMatrix(svmlinear2_prediction, factor(test_label$cancer))
