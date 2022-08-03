@@ -1,17 +1,22 @@
 ---
 title: "Capstone 2 Prediction of ALL vs AML from Gene Expression"
 author: "Dr. Hans M. Rupp"
-date: "29 7 2022"
+date: "08/03/2022"
 output: pdf_document
 ---
 
 
 # Introduction
 
+This project is part of the capstone project of HarvardX PH125.9x Data Science.
+
 The purpose of this project is to evaluate different machine learning algorithms for predicting two different cancer types, Acute Myeloid Leukemia (AML) and Acute lymphoblastic leukaemia (ALL) from microarray RNA expression data.
+
 AML and ALL are the two main types of Acute Leukemias. They differ in their origin and treatments. To provide optimal treatment the cancer type must be diagnosed [1]. Microarray Expression chips are arrays of oligonucleotides which hybridize to mRNAs of specific genes. They allow the semiquantitative analysis of the expression a great number of genes in parallel. One common application is the comparision of diseased vs disease free or of different diseases to find differentially expressed (DE) genes [2]
 
-I will use the AML ALL microarray dataset by Golub [3]. The csv files can be downloaded from
+I will use the AML ALL microarray dataset by Golub [3]. 
+
+The csv files can be downloaded from
 https://www.kaggle.com/datasets/crawford/gene-expression
 
 ```{r message=FALSE, warning=FALSE }
@@ -132,7 +137,7 @@ colSums(design)
 sum(labels$cancer=="AML")
 ```
 
-Estimate the fold changes and standard errors by tting a linear model for each gene
+Estimate the fold changes and standard errors by fitting a linear model for each gene
 
 ```{r}
 
@@ -164,7 +169,8 @@ Comparison of the expression of the top DE gene
 zyxin <- top_data %>% filter(`Gene Description`=="Zyxin") %>% select(-c(1,2)) 
 zyxin <- as.numeric(t(zyxin))
 zyxindf <- data.frame(x = zyxin, labels)
-zyxindf %>% ggplot(aes(x=cancer, y=x)) + geom_boxplot() + labs(title = "Zyxin Expression", x="Cancer", y="Expression")
+zyxindf %>% ggplot(aes(x=cancer, y=x)) + geom_boxplot() + 
+  labs(title = "Zyxin Expression", x="Cancer", y="Expression")
 ```
 
 
@@ -196,7 +202,7 @@ rownames(x_m)<- paste(rownames(x_m), labels$cancer)
 A heatmap is a visual representation of a multidimensional data set using a false-colored image.
 By default the heatmap function clusters both features and samples. It uses the Eucledian distance and complete linkage.
 The features are expected in rows.
-The data is scaled
+The data is scaled.
 
 ```{r}
 heatmap(t(x_m))
@@ -296,7 +302,7 @@ There are several kernel functions available.
 
 The linear kernel does not transform the data at all.
 
-The radial kernel function for two points X₁ and X₂ computes the similarity or how close they are to each other.
+The radial kernel function for two points x1 and x2 computes the similarity or how close they are to each other.
 
 The polynomial kernel of degree d adds a simple nonlinear transformation
 of the data.
@@ -358,10 +364,15 @@ Also this project might be repeated with RNAseq data. RNAseq continues to replac
                                                             
 # References
 [1] Demystifying Targeted Cancer Treatment. Course. Cancer Research UK
+
 [2] Lesk, Arthur M. : Introduction to Genomics. Oxford 2017.
+
 [3] Golub et. al.: Molecular Classification of Cancer: Class Discovery and Class Prediction by Gene Expression Monitoring. Science 286, 531 (1999)
+
 [4] Ritchie, ME, Phipson, B, Wu, D, Hu, Y, Law, CW, Shi, W, and Smyth, GK (2015).
 limma powers differential expression analyses for RNA-sequencing and microarray studies.
-Nucleic Acids Research 43(7), e47.
+Nucleic Acids Research 43(7), e47
+
 [5] https://bioconductor.org/packages/release/workflows/vignettes/RNAseq123/inst/doc/designmatrices.html
+
 [6] Lantz, B: Machine Learning with R. 2019 Packt Publishing
