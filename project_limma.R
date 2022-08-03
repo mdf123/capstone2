@@ -1,10 +1,23 @@
+#Capstone 2 Prediction of ALL vs AML from Gene Expression
 rm(list=ls())
-set.seed(2, sample.kind = "Rounding")
+#This project requires Bioconductor
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+if (!require("limma"))
+  install("limma")
+if (!require("Biobase"))
+  install("Biobase")
+
 library(tidyverse)
 library(caret)
 library(matrixStats)
 library(limma)
 library(Biobase)
+
+
+set.seed(2, sample.kind = "Rounding")
+
+#Reading the data sets
 
 #Data: https://www.kaggle.com/datasets/crawford/gene-expression
 train_data <- read_csv("data_set_ALL_AML_train.csv", col_names = T)
@@ -45,7 +58,7 @@ nrow(all_data)
 #str(all_data)
 #View(labels)
 
-#Sort patient by patient numbers
+#Sort data by patient numbers so that is in the same order as in labels
 all_data_desc <- all_data[, 1:2]
 all_data_data <- all_data[, 3:ncol(all_data)]
 all_data_data <- all_data_data[, order(as.numeric(names(all_data_data)))]
@@ -66,6 +79,7 @@ head(labels)
 colnames(x) <- 1:ncol(x)
 head(x)
 
+#Construct a bioconductor ExpressionSet
 eset <- ExpressionSet(assayData = x,
                       phenoData = AnnotatedDataFrame(labels),
                       featureData = AnnotatedDataFrame(f))
@@ -82,19 +96,20 @@ sum(labels$cancer=="AML")
 #fit the model
 fit <- lmFit(eset, design)
 
-#Calculate the t-statistics
+#Apply empirical Bayes smoothing to the standard errors
 fit <- eBayes(fit)
 
 results <- decideTests(fit[, "cancerAML"])
 summary(results)
 
-#List of differentially expressed genes
+#List of top 100 differentially expressed genes
 top_DE_genes <- topTable(fit, n=100, adjust="fdr")
 head(top_DE_genes)
 
-str(all_data)
+#Filter the top 100 DE genes from all_data
 top_data <- all_data %>% filter(`Gene Accession Number` %in% top_DE_genes$Gene.Accession.Number)
 
+#Compare expression levels for the zyxin gene
 zyxin <- top_data %>% filter(`Gene Description`=="Zyxin") %>% select(-c(1,2)) 
 zyxin <- as.numeric(t(zyxin))
 zyxindf <- data.frame(x = zyxin, labels)
@@ -117,6 +132,7 @@ nrow(x_m) ##72 patients
 colnames(x_m) <- top_data$`Gene Accession Number`
 #Paste cancer type to patient number
 rownames(x_m)<- paste(rownames(x_m), labels$cancer)
+
 #Heatmap expects features in columns
 heatmap(t(x_m))
 #View(x_m)
@@ -150,7 +166,7 @@ confusionMatrix(knn_prediction, factor(test_label$cancer))
 results <- tibble(model="knn", accuracy=confusionMatrix(knn_prediction, factor(test_label$cancer))$overall[["Accuracy"]])
 results
 
-#SVN
+#SVM linear
 svmlinear1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmLinear")
 svmlinear1
 
@@ -161,7 +177,7 @@ svmlinear1_prediction <- predict(svmlinear1, norm_test_data)
 head(svmlinear1_prediction)
 confusionMatrix(svmlinear1_prediction, factor(test_label$cancer))
 
-results <- rbind(results, c("SVM Linear 1", confusionMatrix(svmlinear1_prediction,
+results <- rbind(results, c("SVM Linear ", confusionMatrix(svmlinear1_prediction,
                                                             factor(test_label$cancer))$overall[["Accuracy"]]))
 results
 
@@ -171,3 +187,15 @@ svmlinear2
 
 svmlinear2_prediction <- predict(svmlinear2, norm_test_data)
 confusionMatrix(svmlinear2_prediction, factor(test_label$cancer))
+
+#SVM Radial
+svmRadial1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmRadial", tuneLength = 10)
+svmRadial1$results
+
+svmRadial1_predictions <- predict(svmRadial1, norm_test_data)
+confusionMatrix(svmRadial1_predictions, factor(test_label$cancer))
+
+svmRadial1_accuracy <- confusionMatrix(svmRadial1_predictions, factor(test_label$cancer))$overall[["Accuracy"]]
+results <- rbind(results, c("SVM Radial", svmRadial1_accuracy))
+
+results

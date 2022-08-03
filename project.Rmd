@@ -295,12 +295,16 @@ Many datasets which are not linearly divisible can still be analyzed by projecti
 There are several kernel functions available.
 
 The linear kernel does not transform the data at all.
+
+The radial kernel function for two points X₁ and X₂ computes the similarity or how close they are to each other.
+
 The polynomial kernel of degree d adds a simple nonlinear transformation
 of the data.
+
 The sigmoid kernel results in an SVM model somewhat analogous to a neural
 network using a sigmoid activation function
 
-Linear SVM
+## Linear SVM
 
 ```{r}
 svmlinear1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmLinear")
@@ -317,14 +321,38 @@ confusionMatrix(svmlinear1_prediction, factor(test_label$cancer))
 ```{r}
 svmlinear1_accuracy <- confusionMatrix(svmlinear1_prediction,
                                             factor(test_label$cancer))$overall[["Accuracy"]]
-results <- rbind(results, c("SVM Linear 1", svmlinear1_accuracy))
-results
+results <- rbind(results, c("SVM Linear ", svmlinear1_accuracy))
+
 ```
 
 Without optimizing the cost factor we have already achieved an accuracy of `r svmlinear1_accuracy`
+
+## Radial SVM
+```{r}
+svmRadial1 <- train(x = norm_train_data, y= train_label$cancer, method = "svmRadial", tuneLength = 10)
+svmRadial1$results
+
+svmRadial1_predictions <- predict(svmRadial1, norm_test_data)
+confusionMatrix(svmRadial1_predictions, factor(test_label$cancer))
+
+```
+
+```{r}
+svmRadial1_accuracy <- confusionMatrix(svmRadial1_predictions, factor(test_label$cancer))$overall[["Accuracy"]]
+results <- rbind(results, c("SVM Radial", svmRadial1_accuracy))
+```
+
+
  
 # Discussion
 This analysis has shown that the automated diagnosis of ALL versus AML is feasible with microarray expression data and SVM after differentially expressed genes have been identified.
+
+```{r}
+knitr::kable(results)
+```
+
+Linear SVM has achieved the highest accuracy.
+
 The limitation of this project is the fact that only a relatively small test set was available. The high accuracy might to some degree be due to chance.
 Also this project might be repeated with RNAseq data. RNAseq continues to replace microarray experiments, since it hypothesis free. With microarrays only known genes wich are represented on the chip can be detected.
                                                             
